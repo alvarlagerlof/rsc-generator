@@ -16,7 +16,16 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={inter.className}>{children}</body>
+      <head>
+        <script src="https://cdn.tailwindcss.com"></script>
+      </head>
+      <body
+        className={`${inter.className} p-4 flex flex-col items-center min-h-screen bg-gray-100`}
+      >
+        <main className="max-w-screen-lg w-full h-full grow flex flex-col">
+          {children}
+        </main>
+      </body>
     </html>
   );
 }
