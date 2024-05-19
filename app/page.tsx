@@ -22,7 +22,7 @@ export default function TestPage() {
   >([]);
   const [currentVersionId, setCurrentVersionId] = useState<string | null>(null);
   const currentVersion = versions.find(
-    (version) => version.id === currentVersionId
+    (version) => version.id === currentVersionId,
   );
   const [isPending, startTransition] = useTransition();
 
@@ -41,7 +41,7 @@ export default function TestPage() {
   };
 
   return (
-    <div className="flex flex-row h-full grow gap-8">
+    <div className="flex flex-col md:flex-row h-full grow gap-8">
       {state === "edits" ? (
         <aside className="flex flex-col gap-4 shrink w-48 min-w-48">
           {versions.map((version) => {
@@ -91,7 +91,7 @@ export default function TestPage() {
               <div className="overflow-y-auto max-h-96 bg-white rounded-lg p-4">
                 <RenderedRscPayload
                   rscPayload={getValidRscPayloadFromPartial(
-                    currentVersion?.rscPayload ?? ""
+                    currentVersion?.rscPayload ?? "",
                   )}
                 />
               </div>
@@ -140,7 +140,7 @@ export default function TestPage() {
                     if (
                       isValidRscPayload(
                         // @ts-expect-error What?
-                        getValidRscPayloadFromPartial(currentGeneration)
+                        getValidRscPayloadFromPartial(currentGeneration),
                       )
                     ) {
                       setCurrentVersionId(newVersionId);
@@ -151,7 +151,7 @@ export default function TestPage() {
                       if (
                         previousVersions.find(
                           (previousVersion) =>
-                            previousVersion.id === newVersionId
+                            previousVersion.id === newVersionId,
                         )
                       ) {
                         return previousVersions.map((previousVersion) => {
@@ -373,7 +373,7 @@ function isValidRscPayload(rscText: string) {
 function insertSuspenseBoundaries(rscPayload: string) {
   // Find unresolved line refenreces
   const lineReferences = [...rscPayload.matchAll(/\$L\d{1,2}/g)].map((a) =>
-    a["0"].replace("$L", "")
+    a["0"].replace("$L", ""),
   );
   const lines = rscPayload
     .split("\n")
@@ -388,8 +388,6 @@ function insertSuspenseBoundaries(rscPayload: string) {
     }
   }
 
-  console.log("unresolvedLineRefereces", unresolvedLineRefereces);
-
   function createSuspenseBoundary(lineReference: string) {
     const boundary = `["$","$a",null,{"fallback":["$","p",null,{"children":"Generating..."}],"children":"$L${lineReference}"}]`;
 
@@ -401,14 +399,11 @@ function insertSuspenseBoundaries(rscPayload: string) {
   let clonedPayload = `${rscPayload}`;
   // Find unresolved references and add suspense boundaries
   for (const unresolvedLineReference of unresolvedLineRefereces) {
-    console.log("regex", String.raw`\$L${unresolvedLineReference}`);
     clonedPayload = clonedPayload.replace(
       new RegExp(String.raw`"\$L${unresolvedLineReference}"`, "g"),
-      createSuspenseBoundary(unresolvedLineReference)
+      createSuspenseBoundary(unresolvedLineReference),
     );
   }
-
-  console.log("result", `${suspenseSymbolLine}\n${clonedPayload}`);
 
   return `${suspenseSymbolLine}\n${clonedPayload}`;
 }
@@ -441,7 +436,7 @@ function RenderRscPayload({ rscPayload }: { rscPayload: string | null }) {
   if (promiseCacheValue === undefined) {
     promiseCache.set(
       rscPayloadWithSuspenseBoundaries,
-      createRscStream(rscPayloadWithSuspenseBoundaries)
+      createRscStream(rscPayloadWithSuspenseBoundaries),
     );
   }
 
