@@ -13,7 +13,6 @@ import { createFromReadableStream } from "react-server-dom-webpack/client";
 import { generateRsc } from "./generateRsc";
 import { readStreamableValue } from "ai/rsc";
 import { ErrorBoundary } from "react-error-boundary";
-import { Dr_Sugiyama } from "next/font/google";
 // import { unstable_Viewer, unstable_createFlightResponse } from "@rsc-parser/core";
 
 export default function TestPage() {
@@ -88,7 +87,7 @@ export default function TestPage() {
         {state === "edits" ? (
           <>
             <div className="flex gap-8 flex-col grow">
-              <div className="overflow-y-auto max-h-96 bg-white rounded-lg p-4">
+              <div className="overflow-y-auto max-h-[500px] bg-white rounded-lg p-4">
                 <RenderedRscPayload
                   rscPayload={getValidRscPayloadFromPartial(
                     currentVersion?.rscPayload ?? "",

@@ -1,7 +1,7 @@
 "use server";
 
 import { openai } from "@ai-sdk/openai";
-import { streamText } from "ai";
+import { generateText, streamText } from "ai";
 import { createStreamableValue } from "ai/rsc";
 
 export async function generateRsc(
@@ -14,6 +14,36 @@ export async function generateRsc(
     previousRscPayload: string | null;
   },
 ) {
+  const { text: plan } = await generateText({
+    model: openai("gpt-4o"),
+    seed: 1,
+    messages: [
+      {
+        role: "system",
+        content: `
+          You are a program that helps creating websites based on user input.
+          This part of the program is the planning phrase for what later becomes html.
+          Your job is to plan content and a loose structure to be used in further generation.
+          Also include hints about suggested styling and layout.
+          If the prompt mentions a real brand, include their colors and style.
+          Be careful not to make menus with too many items. Keep it simple.
+          Keep in mind that order and nesting matters.
+          Do not respond with any questions. Only respond with answers expanding on the user propmpt.
+          Only create content for a single page. Do not plan for multiple pages.
+
+          Previous prompt:
+          """${previousPrompt}""""
+          `,
+      },
+      {
+        role: "user",
+        content: prompt,
+      },
+    ],
+  });
+
+  console.log("Plan", plan);
+
   const stream = createStreamableValue("");
 
   console.log("Generating RSC payload");
@@ -66,9 +96,6 @@ export async function generateRsc(
           content: `
           This is what the user asked for previously:
 
-          Previous prompt:
-          """${previousPrompt}""""
-
           Previous resulting RSC payload:
           """${previousRscPayload}""""
 
@@ -77,12 +104,25 @@ export async function generateRsc(
         },
         {
           role: "system",
-          content:
-            "When generating responses, you may want to include image. You can use https://source.unsplash.com/random/200x200?sig=1 and use a random number for the sig parameter. ONLY use images when the user specifically asks for it. Do not use them otherwise.",
+          content: `
+            When generating responses, you may want to include image.
+            You can use https://source.unsplash.com/random/200x200?sig=1 and use a random number for the sig parameter.
+            ONLY use images when the user specifically asks for it. Do not use them otherwise.
+
+            There are also company logos available. You can use them like this:
+            https://logo.clearbit.com/:domain
+            `,
         },
         {
           role: "system",
-          content: `Always make the result as pretty and realistic as possible by styling with Tailwind classNames. Do DO use the """style""" prop. Keep in mind that the output screen size is a very small laptop. If the user us unclear, do expand into something that would appear on the the web.`,
+          content: `
+          Always make the result as pretty and realistic as possible by styling with Tailwind classNames.
+          Strive for a minimal and muted design.
+          Do not simplify or leave content unfinished like placeholders. Everything should look real.
+          Do not use fixed styles. Do DO use the """style""" prop.
+          Keep in mind that the output screen size is a very small laptop.
+          If the user is unclear, do expand into something that would appear on the the web.
+          `,
         },
         {
           role: "system",
@@ -94,13 +134,13 @@ export async function generateRsc(
         },
         {
           role: "user",
-          content: prompt,
+          content: plan,
         },
       ],
     });
 
     for await (const delta of textStream) {
-      console.log("Delta", delta);
+      //console.log("Delta", delta);
       //await new Promise((resolve) => setTimeout(resolve, 50));
       stream.update(delta);
     }

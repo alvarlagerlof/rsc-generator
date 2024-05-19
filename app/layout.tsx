@@ -23,7 +23,7 @@ export default function RootLayout({
       <body
         className={`${inter.className} p-4 flex flex-col items-center min-h-screen bg-gray-100`}
       >
-        <main className="max-w-screen-lg w-full h-full grow flex flex-col">
+        <main className="max-w-screen w-full h-full grow flex flex-col">
           {children}
         </main>
       </body>
