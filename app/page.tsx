@@ -7,130 +7,219 @@ import { readStreamableValue } from "ai/rsc";
 import { ErrorBoundary } from "react-error-boundary";
 // import { unstable_Viewer, unstable_createFlightResponse } from "@rsc-parser/core";
 
-async function createRscStream(rscPayload: string) {
-  const stream = new ReadableStream({
-    start(controller) {
-      controller.enqueue(new TextEncoder().encode(rscPayload));
-    },
-  });
-
-  return createFromReadableStream(stream);
-}
-
 export default function TestPage() {
-  const [rscPayload, setRscPayload] = useState<string | null>(null);
-  const [previousPrompt, setPreviousPrompt] = useState<string | null>(null);
-  const [previousRscPayload, setPreviousRscPayload] = useState<string | null>(
-    null,
+  const [versions, setVersions] = useState<
+    { id: string; prompt: string; isPending: boolean; rscPayload: string }[]
+  >([]);
+  const [currentVersionId, setCurrentVersionId] = useState<string | null>(null);
+  const currentVersion = versions.find(
+    (version) => version.id === currentVersionId,
   );
   const [isPending, startTransition] = useTransition();
 
   return (
-    <div className="flex flex-col h-full grow gap-8">
-      <div className="flex gap-8 flex-col grow">
-        <RenderedRscPayloadBox
-          rscPayload={
-            //isPending
-            false
-              ? previousRscPayload
-              : getValidRscPayloadFromPartial(rscPayload)
-          }
-          isPending={isPending}
-        />
+    <div className="flex flex-row h-full grow gap-8">
+      <aside className="flex flex-col gap-4 shrink w-48 min-w-48">
+        {versions.map((version) => {
+          return (
+            <div
+              key={version.id}
+              className="flex flex-col gap-1.5"
+              onClick={() => {
+                setCurrentVersionId(version.id);
+              }}
+            >
+              <div
+                className={`rounded-lg bg-white h-28 block p-3 ${version.id === currentVersionId ? "outline outline-2 outline-black" : ""}`}
+              >
+                {version.isPending ? (
+                  <div className="flex flex-col justify-between size-full items-center">
+                    <div className="w-full h-1/6 flex flex-row justify-between">
+                      <div className="bg-gray-100 animate-pulse rounded-md w-1/5 h-full" />
+                      <div className="bg-gray-100 animate-pulse rounded-md w-1/3 h-full" />
+                    </div>
+                    <div className="bg-gray-100 animate-pulse rounded-md w-2/3 h-1/2" />
+                    <div className="bg-gray-100 animate-pulse rounded-md w-full h-1/6" />
+                  </div>
+                ) : (
+                  <ShrinkPreview>
+                    <RenderedRscPayload rscPayload={version.rscPayload} />
+                  </ShrinkPreview>
+                )}
+              </div>
+              <p className="break-all whitespace-pre-wrap text-center text-sm w-full">
+                {version.prompt}
+              </p>
+            </div>
+          );
+        })}
+      </aside>
 
-        <RawRscPayloadBox rscPayload={rscPayload} />
-      </div>
+      <main className="flex flex-col w-full gap-8">
+        <div className="flex gap-8 flex-col grow">
+          <div className="overflow-y-auto max-h-96 bg-white rounded-lg p-4">
+            <RenderedRscPayload
+              rscPayload={getValidRscPayloadFromPartial(
+                currentVersion?.rscPayload ?? "",
+              )}
+            />
+          </div>
 
-      <form
-        action={async (formData) => {
-          const prompt = formData.get("prompt");
-          if (typeof prompt !== "string") {
-            throw new Error("Prompt must be a string");
-          }
-
-          setPreviousPrompt(prompt);
-
-          startTransition(async () => {
-            try {
-              const { output } = await generateRsc(prompt, {
-                previousPrompt,
-                previousRscPayload,
-              });
-
-              let currentGeneration = "";
-              for await (const delta of readStreamableValue(output)) {
-                currentGeneration = `${currentGeneration}${delta}`.replaceAll(
-                  "```",
-                  "",
-                );
-                console.log(`current generation: ${currentGeneration}`);
-                setRscPayload(currentGeneration);
-              }
-              setPreviousRscPayload(currentGeneration);
-            } catch (error) {
-              console.error("general error", error);
-            }
-          });
-        }}
-      >
-        <div className="bg-white w-full rounded-lg flex flex-row p-1.5 gap-1.5 items-center">
-          <input
-            name="prompt"
-            placeholder="What do you want?"
-            className={`w-full p-2 bg-gray-100 bg-transparent ${isPending ? "text-gray-500" : ""}`}
-            disabled={isPending}
-          />
-
-          <button
-            type="submit"
-            className={`text-white h-full rounded-md p-2 ${isPending ? "text-gray-200 bg-gray-500" : "bg-black"}`}
-            disabled={isPending}
-          >
-            Generate
-          </button>
+          <Box title="RSC Payload:">
+            <RawRscPayload rscPayload={currentVersion?.rscPayload ?? ""} />
+          </Box>
         </div>
-      </form>
+
+        <form
+          className="sticky bottom-8 shadow-lg"
+          action={async (formData) => {
+            const prompt = formData.get("prompt");
+            if (typeof prompt !== "string") {
+              throw new Error("Prompt must be a string");
+            }
+
+            startTransition(async () => {
+              try {
+                const previousVersion = versions.at(-1);
+                const previousPrompt = previousVersion?.prompt ?? null;
+                const previousRscPayload = previousVersion?.rscPayload ?? null;
+
+                const { output } = await generateRsc(prompt, {
+                  previousPrompt,
+                  previousRscPayload,
+                });
+
+                const newVersionId = prompt + Date.now();
+
+                let currentGeneration = "";
+                for await (const delta of readStreamableValue(output)) {
+                  currentGeneration = `${currentGeneration}${delta}`.replaceAll(
+                    "```",
+                    "",
+                  );
+                  console.log(`current generation: ${currentGeneration}`);
+
+                  if (
+                    isValidRscPayload(
+                      // @ts-expect-error What?
+                      getValidRscPayloadFromPartial(currentGeneration),
+                    )
+                  ) {
+                    setCurrentVersionId(newVersionId);
+                  }
+
+                  setVersions((previousVersions) => {
+                    // check if the version has added
+                    if (
+                      previousVersions.find(
+                        (previousVersion) =>
+                          previousVersion.id === newVersionId,
+                      )
+                    ) {
+                      return previousVersions.map((previousVersion) => {
+                        if (previousVersion.id === newVersionId) {
+                          return {
+                            id: newVersionId,
+                            prompt,
+                            isPending: true,
+                            rscPayload: currentGeneration,
+                          };
+                        }
+
+                        return previousVersion;
+                      });
+                    }
+
+                    // otherwise add a new version
+                    return [
+                      ...previousVersions,
+                      {
+                        id: newVersionId,
+                        prompt,
+                        isPending: true,
+                        rscPayload: currentGeneration,
+                      },
+                    ];
+                  });
+                }
+
+                setVersions((previousVersions) => {
+                  return previousVersions.map((previousVersion) => {
+                    if (previousVersion.id === newVersionId) {
+                      return {
+                        ...previousVersion,
+                        isPending: false,
+                      };
+                    }
+
+                    return previousVersion;
+                  });
+                });
+              } catch (error) {
+                console.error("general error", error);
+              }
+            });
+          }}
+        >
+          <div className="bg-white w-full rounded-lg flex flex-row p-1.5 gap-1.5 items-center">
+            <input
+              name="prompt"
+              placeholder="What do you want?"
+              className={`w-full p-2 bg-gray-100 bg-transparent ${isPending ? "text-gray-500" : ""}`}
+              disabled={isPending}
+            />
+
+            <button
+              type="submit"
+              className={`text-white h-full rounded-md p-2 ${isPending ? "text-gray-200 bg-gray-500" : "bg-black"}`}
+              disabled={isPending}
+            >
+              Generate
+            </button>
+          </div>
+        </form>
+      </main>
     </div>
   );
 }
 
-function RawRscPayloadBox({ rscPayload }: { rscPayload: string | null }) {
-  if (!rscPayload) {
-    return <Box title="RSC Payload:">No RSC Payload yet</Box>;
-  }
-
+function ShrinkPreview({ children }: { children: ReactNode }) {
   return (
-    <Box title="RSC Payload:">
-      <pre className="break-all whitespace-pre-wrap text-xs leading-5">
-        {rscPayload}
-      </pre>
-    </Box>
+    <div className="rounded-md overflow-clip pointer-events-none">
+      <div className="scale-[0.23] origin-top-left overflow-y-clip">
+        <div className="h-96 w-[765px] overflow-hidden">{children}</div>
+      </div>
+    </div>
   );
 }
 
-function RenderedRscPayloadBox({
-  rscPayload,
-  isPending,
-}: {
-  rscPayload: string | null;
-  isPending: boolean;
-}) {
+function RawRscPayload({ rscPayload }: { rscPayload: string | null }) {
   if (!rscPayload) {
-    return <Box title="Rendered:">No RSC Payload yet.</Box>;
-  }
-
-  if (!isValidRscPayload(rscPayload)) {
-    return <Box title="Rendered:">Not a valid RSC Payload</Box>;
+    return "No RSC Payload yet";
   }
 
   return (
-    <Box title="Rendered:" isPending={isPending}>
-      <ErrorBoundary fallback={<p>Error</p>} key={rscPayload}>
-        <Suspense fallback={<p>Loading...</p>} key={rscPayload}>
-          <RenderRscPayload rscPayload={rscPayload} />
-        </Suspense>
-      </ErrorBoundary>
-    </Box>
+    <pre className="break-all whitespace-pre-wrap text-xs leading-5">
+      {rscPayload}
+    </pre>
+  );
+}
+
+function RenderedRscPayload({ rscPayload }: { rscPayload: string | null }) {
+  if (!rscPayload) {
+    return "No RSC Payload yet.";
+  }
+
+  if (!isValidRscPayload(rscPayload)) {
+    return "Not a valid RSC Payload";
+  }
+
+  return (
+    <ErrorBoundary fallback={<p>Error</p>} key={rscPayload}>
+      <Suspense fallback={<p>Loading...</p>} key={rscPayload}>
+        <RenderRscPayload rscPayload={rscPayload} />
+      </Suspense>
+    </ErrorBoundary>
   );
 }
 
@@ -226,6 +315,16 @@ function insertSuspenseBoundaries(rscPayload: string) {
   return `${suspenseSymbolLine}\n${clonedPayload}`;
 }
 
+async function createRscStream(rscPayload: string) {
+  const stream = new ReadableStream({
+    start(controller) {
+      controller.enqueue(new TextEncoder().encode(rscPayload));
+    },
+  });
+
+  return createFromReadableStream(stream);
+}
+
 const promiseCache = new Map<string, Promise<any>>();
 
 function RenderRscPayload({ rscPayload }: { rscPayload: string | null }) {
@@ -252,9 +351,5 @@ function RenderRscPayload({ rscPayload }: { rscPayload: string | null }) {
     return "no promiseCacheValue";
   }
 
-  return (
-    <div className=" overflow-y-auto w-full min-w-full">
-      {use(promiseCacheValue)}
-    </div>
-  );
+  return <div className="w-full min-w-full">{use(promiseCacheValue)}</div>;
 }

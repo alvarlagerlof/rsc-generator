@@ -82,8 +82,7 @@ export async function generateRsc(
         },
         {
           role: "system",
-          content:
-            "Always make the result as pretty and realistic as possible by styling with Tailwind classNames. Keep in mind that the output screen size is a very small laptop.",
+          content: `Always make the result as pretty and realistic as possible by styling with Tailwind classNames. Do DO use the """style""" prop. Keep in mind that the output screen size is a very small laptop. If the user us unclear, do expand into something that would appear on the the web.`,
         },
         {
           role: "system",
