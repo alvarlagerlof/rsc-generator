@@ -8,6 +8,7 @@ import {
   useState,
   useTransition,
 } from "react";
+// @ts-expect-error TODO: Fix later
 import { createFromReadableStream } from "react-server-dom-webpack/client";
 import { generateRsc } from "./generateRsc";
 import { readStreamableValue } from "ai/rsc";
@@ -21,7 +22,7 @@ export default function TestPage() {
   >([]);
   const [currentVersionId, setCurrentVersionId] = useState<string | null>(null);
   const currentVersion = versions.find(
-    (version) => version.id === currentVersionId,
+    (version) => version.id === currentVersionId
   );
   const [isPending, startTransition] = useTransition();
 
@@ -53,7 +54,11 @@ export default function TestPage() {
                 }}
               >
                 <div
-                  className={`rounded-lg bg-white h-28 block p-3 ${version.id === currentVersionId ? "outline outline-2 outline-black" : ""}`}
+                  className={`rounded-lg bg-white h-28 block p-3 ${
+                    version.id === currentVersionId
+                      ? "outline outline-2 outline-black"
+                      : ""
+                  }`}
                 >
                   {version.isPending ? (
                     <div className="flex flex-col justify-between size-full items-center">
@@ -86,7 +91,7 @@ export default function TestPage() {
               <div className="overflow-y-auto max-h-96 bg-white rounded-lg p-4">
                 <RenderedRscPayload
                   rscPayload={getValidRscPayloadFromPartial(
-                    currentVersion?.rscPayload ?? "",
+                    currentVersion?.rscPayload ?? ""
                   )}
                 />
               </div>
@@ -99,7 +104,9 @@ export default function TestPage() {
         ) : null}
 
         <div
-          className={`sticky flex flex-col gap-3 items-center ${state === "edits" ? "bottom-8" : "top-32"}`}
+          className={`sticky flex flex-col gap-3 items-center ${
+            state === "edits" ? "bottom-8" : "top-32"
+          }`}
         >
           <form
             className="sticky shadow-lg w-full"
@@ -133,7 +140,7 @@ export default function TestPage() {
                     if (
                       isValidRscPayload(
                         // @ts-expect-error What?
-                        getValidRscPayloadFromPartial(currentGeneration),
+                        getValidRscPayloadFromPartial(currentGeneration)
                       )
                     ) {
                       setCurrentVersionId(newVersionId);
@@ -144,7 +151,7 @@ export default function TestPage() {
                       if (
                         previousVersions.find(
                           (previousVersion) =>
-                            previousVersion.id === newVersionId,
+                            previousVersion.id === newVersionId
                         )
                       ) {
                         return previousVersions.map((previousVersion) => {
@@ -201,13 +208,17 @@ export default function TestPage() {
                 name="prompt"
                 ref={inputRef}
                 placeholder="What do you want to generate?"
-                className={`w-full p-2 bg-gray-100 bg-transparent ${isPending ? "text-gray-500" : ""}`}
+                className={`w-full p-2 bg-gray-100 bg-transparent ${
+                  isPending ? "text-gray-500" : ""
+                }`}
                 disabled={isPending}
               />
 
               <button
                 type="submit"
-                className={`text-white h-full rounded-md p-2 ${isPending ? "text-gray-200 bg-gray-500" : "bg-black"}`}
+                className={`text-white h-full rounded-md p-2 ${
+                  isPending ? "text-gray-200 bg-gray-500" : "bg-black"
+                }`}
                 disabled={isPending}
               >
                 Generate
@@ -250,11 +261,13 @@ function SuggestionButton({
 }: {
   children: string;
   onSuggestionClick: (suggestion: string) => void;
-  isPending;
+  isPending: boolean;
 }) {
   return (
     <button
-      className={`rounded-full bg-white py-1.5 px-3 ${isPending ? "text-gray-500" : ""}`}
+      className={`rounded-full bg-white py-1.5 px-3 ${
+        isPending ? "text-gray-500" : ""
+      }`}
       disabled={isPending}
       onClick={() => {
         onSuggestionClick(children);
@@ -298,9 +311,10 @@ function RenderedRscPayload({ rscPayload }: { rscPayload: string | null }) {
 
   return (
     <ErrorBoundary fallback={<p>Error</p>} key={rscPayload}>
-      <Suspense fallback={<p>Loading...</p>} key={rscPayload}>
-        <RenderRscPayload rscPayload={rscPayload} />
-      </Suspense>
+      {/* TODO: This suspense boundary cause the UI to jump a lot. *}
+      {/* <Suspense fallback={<p>Loading...</p>} key={rscPayload}> */}
+      <RenderRscPayload rscPayload={rscPayload} />
+      {/* </Suspense> */}
     </ErrorBoundary>
   );
 }
@@ -318,7 +332,9 @@ function Box({
     <section className="flex flex-col gap-1.5">
       <h2 className="font-medium">{title}</h2>
       <div
-        className={`bg-white rounded-lg p-4 ${isPending ? "bg-opacity-60" : ""}`}
+        className={`bg-white rounded-lg p-4 ${
+          isPending ? "bg-opacity-60" : ""
+        }`}
       >
         {children}
       </div>
@@ -357,7 +373,7 @@ function isValidRscPayload(rscText: string) {
 function insertSuspenseBoundaries(rscPayload: string) {
   // Find unresolved line refenreces
   const lineReferences = [...rscPayload.matchAll(/\$L\d{1,2}/g)].map((a) =>
-    a["0"].replace("$L", ""),
+    a["0"].replace("$L", "")
   );
   const lines = rscPayload
     .split("\n")
@@ -388,7 +404,7 @@ function insertSuspenseBoundaries(rscPayload: string) {
     console.log("regex", String.raw`\$L${unresolvedLineReference}`);
     clonedPayload = clonedPayload.replace(
       new RegExp(String.raw`"\$L${unresolvedLineReference}"`, "g"),
-      createSuspenseBoundary(unresolvedLineReference),
+      createSuspenseBoundary(unresolvedLineReference)
     );
   }
 
@@ -425,7 +441,7 @@ function RenderRscPayload({ rscPayload }: { rscPayload: string | null }) {
   if (promiseCacheValue === undefined) {
     promiseCache.set(
       rscPayloadWithSuspenseBoundaries,
-      createRscStream(rscPayloadWithSuspenseBoundaries),
+      createRscStream(rscPayloadWithSuspenseBoundaries)
     );
   }
 
