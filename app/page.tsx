@@ -1,10 +1,18 @@
 "use client";
 
-import { ReactNode, Suspense, use, useState, useTransition } from "react";
+import {
+  ReactNode,
+  Suspense,
+  use,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { createFromReadableStream } from "react-server-dom-webpack/client";
 import { generateRsc } from "./generateRsc";
 import { readStreamableValue } from "ai/rsc";
 import { ErrorBoundary } from "react-error-boundary";
+import { Dr_Sugiyama } from "next/font/google";
 // import { unstable_Viewer, unstable_createFlightResponse } from "@rsc-parser/core";
 
 export default function TestPage() {
@@ -17,169 +25,243 @@ export default function TestPage() {
   );
   const [isPending, startTransition] = useTransition();
 
+  const state: "inital" | "edits" =
+    versions.length > 0 && versions[0].rscPayload != "" ? "edits" : "inital";
+
+  const formRef = useRef<HTMLFormElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const onSuggestionClick = (suggestion: string) => {
+    if (!inputRef.current || !formRef.current) {
+      return;
+    }
+    inputRef.current.setAttribute("value", suggestion);
+    formRef.current.requestSubmit();
+  };
+
   return (
     <div className="flex flex-row h-full grow gap-8">
-      <aside className="flex flex-col gap-4 shrink w-48 min-w-48">
-        {versions.map((version) => {
-          return (
-            <div
-              key={version.id}
-              className="flex flex-col gap-1.5"
-              onClick={() => {
-                setCurrentVersionId(version.id);
-              }}
-            >
+      {state === "edits" ? (
+        <aside className="flex flex-col gap-4 shrink w-48 min-w-48">
+          {versions.map((version) => {
+            return (
               <div
-                className={`rounded-lg bg-white h-28 block p-3 ${version.id === currentVersionId ? "outline outline-2 outline-black" : ""}`}
+                key={version.id}
+                className="flex flex-col gap-1.5"
+                onClick={() => {
+                  setCurrentVersionId(version.id);
+                }}
               >
-                {version.isPending ? (
-                  <div className="flex flex-col justify-between size-full items-center">
-                    <div className="w-full h-1/6 flex flex-row justify-between">
-                      <div className="bg-gray-100 animate-pulse rounded-md w-1/5 h-full" />
-                      <div className="bg-gray-100 animate-pulse rounded-md w-1/3 h-full" />
+                <div
+                  className={`rounded-lg bg-white h-28 block p-3 ${version.id === currentVersionId ? "outline outline-2 outline-black" : ""}`}
+                >
+                  {version.isPending ? (
+                    <div className="flex flex-col justify-between size-full items-center">
+                      <div className="w-full h-1/6 flex flex-row justify-between">
+                        <div className="bg-gray-100 animate-pulse rounded-md w-1/5 h-full" />
+                        <div className="bg-gray-100 animate-pulse rounded-md w-1/3 h-full" />
+                      </div>
+                      <div className="bg-gray-100 animate-pulse rounded-md w-2/3 h-1/2" />
+                      <div className="bg-gray-100 animate-pulse rounded-md w-full h-1/6" />
                     </div>
-                    <div className="bg-gray-100 animate-pulse rounded-md w-2/3 h-1/2" />
-                    <div className="bg-gray-100 animate-pulse rounded-md w-full h-1/6" />
-                  </div>
-                ) : (
-                  <ShrinkPreview>
-                    <RenderedRscPayload rscPayload={version.rscPayload} />
-                  </ShrinkPreview>
-                )}
+                  ) : (
+                    <ShrinkPreview>
+                      <RenderedRscPayload rscPayload={version.rscPayload} />
+                    </ShrinkPreview>
+                  )}
+                </div>
+                <p className="break-all whitespace-pre-wrap text-center text-sm w-full">
+                  {version.prompt}
+                </p>
               </div>
-              <p className="break-all whitespace-pre-wrap text-center text-sm w-full">
-                {version.prompt}
-              </p>
-            </div>
-          );
-        })}
-      </aside>
+            );
+          })}
+        </aside>
+      ) : null}
 
       <main className="flex flex-col w-full gap-8">
-        <div className="flex gap-8 flex-col grow">
-          <div className="overflow-y-auto max-h-96 bg-white rounded-lg p-4">
-            <RenderedRscPayload
-              rscPayload={getValidRscPayloadFromPartial(
-                currentVersion?.rscPayload ?? "",
-              )}
-            />
-          </div>
+        {state === "edits" ? (
+          <>
+            <div className="flex gap-8 flex-col grow">
+              <div className="overflow-y-auto max-h-96 bg-white rounded-lg p-4">
+                <RenderedRscPayload
+                  rscPayload={getValidRscPayloadFromPartial(
+                    currentVersion?.rscPayload ?? "",
+                  )}
+                />
+              </div>
 
-          <Box title="RSC Payload:">
-            <RawRscPayload rscPayload={currentVersion?.rscPayload ?? ""} />
-          </Box>
-        </div>
+              <Box title="RSC Payload:">
+                <RawRscPayload rscPayload={currentVersion?.rscPayload ?? ""} />
+              </Box>
+            </div>
+          </>
+        ) : null}
 
-        <form
-          className="sticky bottom-8 shadow-lg"
-          action={async (formData) => {
-            const prompt = formData.get("prompt");
-            if (typeof prompt !== "string") {
-              throw new Error("Prompt must be a string");
-            }
+        <div
+          className={`sticky flex flex-col gap-3 items-center ${state === "edits" ? "bottom-8" : "top-32"}`}
+        >
+          <form
+            className="sticky shadow-lg w-full"
+            ref={formRef}
+            action={async (formData) => {
+              const prompt = formData.get("prompt");
+              if (typeof prompt !== "string") {
+                throw new Error("Prompt must be a string");
+              }
 
-            startTransition(async () => {
-              try {
-                const previousVersion = versions.at(-1);
-                const previousPrompt = previousVersion?.prompt ?? null;
-                const previousRscPayload = previousVersion?.rscPayload ?? null;
+              startTransition(async () => {
+                try {
+                  const previousVersion = versions.at(-1);
+                  const previousPrompt = previousVersion?.prompt ?? null;
+                  const previousRscPayload =
+                    previousVersion?.rscPayload ?? null;
 
-                const { output } = await generateRsc(prompt, {
-                  previousPrompt,
-                  previousRscPayload,
-                });
+                  const { output } = await generateRsc(prompt, {
+                    previousPrompt,
+                    previousRscPayload,
+                  });
 
-                const newVersionId = prompt + Date.now();
+                  const newVersionId = prompt + Date.now();
 
-                let currentGeneration = "";
-                for await (const delta of readStreamableValue(output)) {
-                  currentGeneration = `${currentGeneration}${delta}`.replaceAll(
-                    "```",
-                    "",
-                  );
-                  console.log(`current generation: ${currentGeneration}`);
+                  let currentGeneration = "";
+                  for await (const delta of readStreamableValue(output)) {
+                    currentGeneration =
+                      `${currentGeneration}${delta}`.replaceAll("```", "");
+                    console.log(`current generation: ${currentGeneration}`);
 
-                  if (
-                    isValidRscPayload(
-                      // @ts-expect-error What?
-                      getValidRscPayloadFromPartial(currentGeneration),
-                    )
-                  ) {
-                    setCurrentVersionId(newVersionId);
+                    if (
+                      isValidRscPayload(
+                        // @ts-expect-error What?
+                        getValidRscPayloadFromPartial(currentGeneration),
+                      )
+                    ) {
+                      setCurrentVersionId(newVersionId);
+                    }
+
+                    setVersions((previousVersions) => {
+                      // check if the version has added
+                      if (
+                        previousVersions.find(
+                          (previousVersion) =>
+                            previousVersion.id === newVersionId,
+                        )
+                      ) {
+                        return previousVersions.map((previousVersion) => {
+                          if (previousVersion.id === newVersionId) {
+                            return {
+                              id: newVersionId,
+                              prompt,
+                              isPending: true,
+                              rscPayload: currentGeneration,
+                            };
+                          }
+
+                          return previousVersion;
+                        });
+                      }
+
+                      // otherwise add a new version
+                      return [
+                        ...previousVersions,
+                        {
+                          id: newVersionId,
+                          prompt,
+                          isPending: true,
+                          rscPayload: currentGeneration,
+                        },
+                      ];
+                    });
                   }
 
                   setVersions((previousVersions) => {
-                    // check if the version has added
-                    if (
-                      previousVersions.find(
-                        (previousVersion) =>
-                          previousVersion.id === newVersionId,
-                      )
-                    ) {
-                      return previousVersions.map((previousVersion) => {
-                        if (previousVersion.id === newVersionId) {
-                          return {
-                            id: newVersionId,
-                            prompt,
-                            isPending: true,
-                            rscPayload: currentGeneration,
-                          };
-                        }
+                    return previousVersions.map((previousVersion) => {
+                      if (previousVersion.id === newVersionId) {
+                        return {
+                          ...previousVersion,
+                          isPending: false,
+                        };
+                      }
 
-                        return previousVersion;
-                      });
-                    }
-
-                    // otherwise add a new version
-                    return [
-                      ...previousVersions,
-                      {
-                        id: newVersionId,
-                        prompt,
-                        isPending: true,
-                        rscPayload: currentGeneration,
-                      },
-                    ];
+                      return previousVersion;
+                    });
                   });
+                } catch (error) {
+                  console.error("general error", error);
                 }
 
-                setVersions((previousVersions) => {
-                  return previousVersions.map((previousVersion) => {
-                    if (previousVersion.id === newVersionId) {
-                      return {
-                        ...previousVersion,
-                        isPending: false,
-                      };
-                    }
+                if (inputRef.current) {
+                  inputRef.current.setAttribute("value", "");
+                }
+              });
+            }}
+          >
+            <div className="bg-white w-full rounded-lg flex flex-row p-1.5 gap-1.5 items-center">
+              <input
+                name="prompt"
+                ref={inputRef}
+                placeholder="What do you want to generate?"
+                className={`w-full p-2 bg-gray-100 bg-transparent ${isPending ? "text-gray-500" : ""}`}
+                disabled={isPending}
+              />
 
-                    return previousVersion;
-                  });
-                });
-              } catch (error) {
-                console.error("general error", error);
-              }
-            });
-          }}
-        >
-          <div className="bg-white w-full rounded-lg flex flex-row p-1.5 gap-1.5 items-center">
-            <input
-              name="prompt"
-              placeholder="What do you want?"
-              className={`w-full p-2 bg-gray-100 bg-transparent ${isPending ? "text-gray-500" : ""}`}
-              disabled={isPending}
-            />
+              <button
+                type="submit"
+                className={`text-white h-full rounded-md p-2 ${isPending ? "text-gray-200 bg-gray-500" : "bg-black"}`}
+                disabled={isPending}
+              >
+                Generate
+              </button>
+            </div>
+          </form>
 
-            <button
-              type="submit"
-              className={`text-white h-full rounded-md p-2 ${isPending ? "text-gray-200 bg-gray-500" : "bg-black"}`}
-              disabled={isPending}
-            >
-              Generate
-            </button>
-          </div>
-        </form>
+          {state === "inital" ? (
+            <div className="flex flex-row gap-2 flex-wrap justify-center">
+              {[
+                "Google.com home page",
+                "Netflix.com home page",
+                "Twitter svg blue",
+                "Youtube.com start page",
+                "Google maps with a search field overlay",
+                "Personal website blog post about reacr server components",
+              ].map((suggestion) => {
+                return (
+                  <SuggestionButton
+                    key={suggestion}
+                    onSuggestionClick={onSuggestionClick}
+                    isPending={isPending}
+                  >
+                    {suggestion}
+                  </SuggestionButton>
+                );
+              })}
+            </div>
+          ) : null}
+        </div>
       </main>
     </div>
+  );
+}
+
+function SuggestionButton({
+  children,
+  onSuggestionClick,
+  isPending,
+}: {
+  children: string;
+  onSuggestionClick: (suggestion: string) => void;
+  isPending;
+}) {
+  return (
+    <button
+      className={`rounded-full bg-white py-1.5 px-3 ${isPending ? "text-gray-500" : ""}`}
+      disabled={isPending}
+      onClick={() => {
+        onSuggestionClick(children);
+      }}
+    >
+      {children}
+    </button>
   );
 }
 
