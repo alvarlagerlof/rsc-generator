@@ -37,6 +37,7 @@ export async function generateRsc(
 
         RSC payload:
         """0:["$","h2",null,{"children":"Test"}]\n"""
+        The """null""" after the element type is important and should NOT be omitted ever.
 
         The RSC payloads can also be nested like this:
         """0:[["$","h1",null,{"children":"Testing!"}],["$","h1",null,{"children":"Testing!"}]]\n"""
@@ -46,6 +47,17 @@ export async function generateRsc(
 
         You can nest elements inside of other by adding them as children. Here's an example:
         """0:[["$","div",null,{"children":["$","h1",null,{"children":"Testing!"}]}]]\n"""
+
+        Use line references like this to split the payload into parts:
+        """0:["$","div",null,{"children":"$L1"}]\n1:["$","h2",null,{"children":"Test"}]\n"""
+        """0:["$","nav",null,{"children":"$L1"}]\n1:["$","ul",null,{"children":[["$","li",null,{"children":"item"}],["$","li",null,{"children":"item 2"}]]}]\n"""
+        Please note the """$L1"""". It is a reference to another line. This number has to be correct.
+        For example, a header or a footer may have their own line references to sepearate lines.
+        This lets you think step-by-step and generate small sections at at time.
+        Use them to avoid problems with matching closing brackets.
+        EVEN if the response is short, ALWAYS do use line references.
+        Do not make the lines short. It will make it harder to the the styling right.
+        All lines except for """0:""" MUST be referenced by other lines. Otherwise all of the UI won't show up.'
 
         It's important that you always reply in the RSC payload format. The payload always has to be complete and have the same number of opening and closing brackets. Respond without newlines.`,
         },
@@ -60,7 +72,8 @@ export async function generateRsc(
           Previous resulting RSC payload:
           """${previousRscPayload}""""
 
-          You can use this as a reference when generating the new RSC payload, but make sure that the new payload is still valid.`,
+          You can use this as a guide when generating the new RSC payload, but make sure that the new payload is still valid.
+          Making use of line references to split the payload into multiple lines may help when improving a generation.`,
         },
         {
           role: "system",
@@ -69,11 +82,16 @@ export async function generateRsc(
         },
         {
           role: "system",
+          content:
+            "Always make the result as pretty and realistic as possible by styling with Tailwind classNames. Keep in mind that the output screen size is a very small laptop.",
+        },
+        {
+          role: "system",
           content: `.
           Example of a payload (do not return the tripple double quotes):
           """0:["$","h2",null,{"children":"Test"}]\n"""
 
-          Do not wrap the response in backticks or """ Make sure that the response ALWAYS starts with """0:""" and ALWAYS ENDS with a newline like """\n""". The newline at the end is especially important for the parsing to work.`,
+          DO NOT wrap the response in \`\`\` or """. NO BACKTICKS. Make sure that the response ALWAYS starts with """0:""" and ALWAYS ENDS with a newline like """\n""". The newline at the end is especially important for the parsing to work.`,
         },
         {
           role: "user",
@@ -84,7 +102,7 @@ export async function generateRsc(
 
     for await (const delta of textStream) {
       console.log("Delta", delta);
-      // await new Promise((resolve) => setTimeout(resolve, 100));
+      //await new Promise((resolve) => setTimeout(resolve, 50));
       stream.update(delta);
     }
 

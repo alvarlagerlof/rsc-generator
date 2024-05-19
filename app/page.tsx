@@ -1,24 +1,11 @@
 "use client";
 
-import {
-  ReactNode,
-  Suspense,
-  use,
-  useActionState,
-  useEffect,
-  useState,
-  useSyncExternalStore,
-  useTransition,
-} from "react";
+import { ReactNode, Suspense, use, useState, useTransition } from "react";
 import { createFromReadableStream } from "react-server-dom-webpack/client";
 import { generateRsc } from "./generateRsc";
 import { readStreamableValue } from "ai/rsc";
 import { ErrorBoundary } from "react-error-boundary";
-import { flushSync } from "react-dom";
-
-function createRscPayload(rscTree: string) {
-  return `0:${rscTree}\n`;
-}
+// import { unstable_Viewer, unstable_createFlightResponse } from "@rsc-parser/core";
 
 async function createRscStream(rscPayload: string) {
   const stream = new ReadableStream({
@@ -41,12 +28,17 @@ export default function TestPage() {
   return (
     <div className="flex flex-col h-full grow gap-8">
       <div className="flex gap-8 flex-col grow">
-        <RawRscPayloadBox rscPayload={rscPayload} />
-
         <RenderedRscPayloadBox
-          rscPayload={isPending ? previousRscPayload : rscPayload}
+          rscPayload={
+            //isPending
+            false
+              ? previousRscPayload
+              : getValidRscPayloadFromPartial(rscPayload)
+          }
           isPending={isPending}
         />
+
+        <RawRscPayloadBox rscPayload={rscPayload} />
       </div>
 
       <form
@@ -67,7 +59,10 @@ export default function TestPage() {
 
               let currentGeneration = "";
               for await (const delta of readStreamableValue(output)) {
-                currentGeneration = `${currentGeneration}${delta}`;
+                currentGeneration = `${currentGeneration}${delta}`.replaceAll(
+                  "```",
+                  "",
+                );
                 console.log(`current generation: ${currentGeneration}`);
                 setRscPayload(currentGeneration);
               }
@@ -113,7 +108,13 @@ function RawRscPayloadBox({ rscPayload }: { rscPayload: string | null }) {
   );
 }
 
-function RenderedRscPayloadBox({ rscPayload }: { rscPayload: string | null }) {
+function RenderedRscPayloadBox({
+  rscPayload,
+  isPending,
+}: {
+  rscPayload: string | null;
+  isPending: boolean;
+}) {
   if (!rscPayload) {
     return <Box title="Rendered:">No RSC Payload yet.</Box>;
   }
@@ -123,7 +124,7 @@ function RenderedRscPayloadBox({ rscPayload }: { rscPayload: string | null }) {
   }
 
   return (
-    <Box title="Rendered:">
+    <Box title="Rendered:" isPending={isPending}>
       <ErrorBoundary fallback={<p>Error</p>} key={rscPayload}>
         <Suspense fallback={<p>Loading...</p>} key={rscPayload}>
           <RenderRscPayload rscPayload={rscPayload} />
@@ -154,6 +155,22 @@ function Box({
   );
 }
 
+function getValidRscPayloadFromPartial(partialRscPayload: string | null) {
+  if (partialRscPayload === null) {
+    return partialRscPayload;
+  }
+
+  const splitByNewLines = partialRscPayload.split("\n");
+
+  if (splitByNewLines.length === 0 || splitByNewLines.length === 1) {
+    return partialRscPayload;
+  }
+
+  // Return every array item except the last one and join
+  splitByNewLines.pop();
+  return splitByNewLines.join("\n") + "\n";
+}
+
 function isValidRscPayload(rscText: string) {
   if (!rscText.startsWith("0:")) {
     return false;
@@ -164,6 +181,49 @@ function isValidRscPayload(rscText: string) {
   }
 
   return true;
+}
+
+function insertSuspenseBoundaries(rscPayload: string) {
+  // Find unresolved line refenreces
+  const lineReferences = [...rscPayload.matchAll(/\$L\d{1,2}/g)].map((a) =>
+    a["0"].replace("$L", ""),
+  );
+  const lines = rscPayload
+    .split("\n")
+    .map((line) => line.split(":").at(0))
+    .filter((line) => line !== "");
+
+  const unresolvedLineRefereces = [];
+  for (const lineReference of lineReferences) {
+    // Try to find the line reference among the lines
+    if (!lines.includes(lineReference)) {
+      unresolvedLineRefereces.push(lineReference);
+    }
+  }
+
+  console.log("unresolvedLineRefereces", unresolvedLineRefereces);
+
+  function createSuspenseBoundary(lineReference: string) {
+    const boundary = `["$","$a",null,{"fallback":["$","p",null,{"children":"Generating..."}],"children":"$L${lineReference}"}]`;
+
+    return boundary;
+  }
+
+  const suspenseSymbolLine = `a:"$Sreact.suspense"`;
+
+  let clonedPayload = `${rscPayload}`;
+  // Find unresolved references and add suspense boundaries
+  for (const unresolvedLineReference of unresolvedLineRefereces) {
+    console.log("regex", String.raw`\$L${unresolvedLineReference}`);
+    clonedPayload = clonedPayload.replace(
+      new RegExp(String.raw`"\$L${unresolvedLineReference}"`, "g"),
+      createSuspenseBoundary(unresolvedLineReference),
+    );
+  }
+
+  console.log("result", `${suspenseSymbolLine}\n${clonedPayload}`);
+
+  return `${suspenseSymbolLine}\n${clonedPayload}`;
 }
 
 const promiseCache = new Map<string, Promise<any>>();
@@ -177,15 +237,24 @@ function RenderRscPayload({ rscPayload }: { rscPayload: string | null }) {
     return "Invalid RSC Payload.";
   }
 
-  const promiseCacheValue = promiseCache.get(rscPayload);
+  const rscPayloadWithSuspenseBoundaries = insertSuspenseBoundaries(rscPayload);
+
+  const promiseCacheValue = promiseCache.get(rscPayloadWithSuspenseBoundaries);
 
   if (promiseCacheValue === undefined) {
-    promiseCache.set(rscPayload, createRscStream(rscPayload));
+    promiseCache.set(
+      rscPayloadWithSuspenseBoundaries,
+      createRscStream(rscPayloadWithSuspenseBoundaries),
+    );
   }
 
   if (promiseCacheValue === undefined) {
     return "no promiseCacheValue";
   }
 
-  return <>{use(promiseCacheValue)}</>;
+  return (
+    <div className=" overflow-y-auto w-full min-w-full">
+      {use(promiseCacheValue)}
+    </div>
+  );
 }
