@@ -12,7 +12,7 @@ export async function generateRsc(
   }: {
     previousPrompt: string | null;
     previousRscPayload: string | null;
-  },
+  }
 ) {
   const { text: plan } = await generateText({
     model: openai("gpt-4o"),
@@ -120,7 +120,7 @@ export async function generateRsc(
           Strive for a minimal and muted design.
           Do not simplify or leave content unfinished like placeholders. Everything should look real.
           Do not use fixed styles. Do DO use the """style""" prop.
-          Keep in mind that the output screen size is a very small laptop.
+          Keep in mind that the output screen size is a very small laptop. DO not use classNames like """min-h-screen""".
           If the user is unclear, do expand into something that would appear on the the web.
           `,
         },
