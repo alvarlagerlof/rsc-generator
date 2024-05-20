@@ -237,8 +237,9 @@ export default function TestPage() {
             <div className="flex flex-row gap-2 flex-wrap justify-center">
               {[
                 "Google.com home page",
-                "Netflix.com home page",
+                "Netflix.com home page (logged in)",
                 "Twitter svg blue",
+                "Twitter.com home page (logged in)",
                 "Youtube.com start page",
                 "Google maps with a search field overlay",
                 "Personal website blog post about react server components",
