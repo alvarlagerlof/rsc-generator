@@ -17,6 +17,8 @@ import { ErrorBoundary } from "react-error-boundary";
 // @ts-expect-error TODO: Fix later
 import { BeatLoading } from "respinner";
 
+export const maxDuration = 240;
+
 export default function TestPage() {
   const [versions, setVersions] = useState<
     { id: string; prompt: string; isPending: boolean; rscPayload: string }[]
