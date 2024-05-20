@@ -27,8 +27,8 @@ export default function TestPage() {
   );
   const [isPending, startTransition] = useTransition();
 
-  const state: "inital" | "edits" =
-    versions.length > 0 && versions[0].rscPayload != "" ? "edits" : "inital";
+  const state: "initial" | "edits" =
+    versions.length > 0 && versions[0].rscPayload != "" ? "edits" : "initial";
 
   const formRef = useRef<HTMLFormElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -233,7 +233,7 @@ export default function TestPage() {
             </div>
           </form>
 
-          {state === "inital" ? (
+          {state === "initial" ? (
             <div className="flex flex-row gap-2 flex-wrap justify-center">
               {[
                 "Google.com home page",
