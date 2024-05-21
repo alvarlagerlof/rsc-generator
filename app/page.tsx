@@ -390,11 +390,11 @@ function insertSuspenseBoundaries(rscPayload: string) {
     .map((line) => line.split(":").at(0))
     .filter((line) => line !== "");
 
-  const unresolvedLineRefereces = [];
+  const unresolvedLineReferences = [];
   for (const lineReference of lineReferences) {
     // Try to find the line reference among the lines
     if (!lines.includes(lineReference)) {
-      unresolvedLineRefereces.push(lineReference);
+      unresolvedLineReferences.push(lineReference);
     }
   }
 
@@ -408,7 +408,7 @@ function insertSuspenseBoundaries(rscPayload: string) {
 
   let clonedPayload = `${rscPayload}`;
   // Find unresolved references and add suspense boundaries
-  for (const unresolvedLineReference of unresolvedLineRefereces) {
+  for (const unresolvedLineReference of unresolvedLineReferences) {
     clonedPayload = clonedPayload.replace(
       new RegExp(String.raw`"\$L${unresolvedLineReference}"`, "g"),
       createSuspenseBoundary(unresolvedLineReference)
