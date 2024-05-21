@@ -29,7 +29,7 @@ type Version = {
   rscPayload: string;
 };
 
-export default function TestPage() {
+export default function Page() {
   const [versions, setVersions] = useState<
     { id: string; prompt: string; isPending: boolean; rscPayload: string }[]
   >([]);
