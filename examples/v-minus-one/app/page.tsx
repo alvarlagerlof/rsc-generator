@@ -2,9 +2,7 @@
 
 import {
   ReactNode,
-  Suspense,
   use,
-  useMemo,
   useOptimistic,
   useRef,
   useState,
@@ -18,7 +16,6 @@ import { ErrorBoundary } from "react-error-boundary";
 // import { unstable_Viewer, unstable_createFlightResponse } from "@rsc-parser/core";
 // @ts-expect-error TODO: Fix later
 import { BeatLoading } from "respinner";
-import { flushSync } from "react-dom";
 
 export const maxDuration = 240;
 
