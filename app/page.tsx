@@ -74,7 +74,12 @@ export default function TestPage() {
                     </div>
                   ) : (
                     <ShrinkPreview>
-                      <RenderedRscPayload rscPayload={version.rscPayload} />
+                      <ErrorBoundary
+                        fallback={<p>Error</p>}
+                        key={currentVersion?.rscPayload ?? ""}
+                      >
+                        <RenderRscPayload rscPayload={version.rscPayload} />
+                      </ErrorBoundary>
                     </ShrinkPreview>
                   )}
                 </div>
@@ -92,11 +97,16 @@ export default function TestPage() {
           <>
             <div className="flex gap-8 flex-col grow">
               <div className="overflow-y-auto max-h-[500px] bg-white rounded-lg p-4">
-                <RenderedRscPayload
-                  rscPayload={getValidRscPayloadFromPartial(
-                    currentVersion?.rscPayload ?? ""
-                  )}
-                />
+                <ErrorBoundary
+                  fallback={<p>Error</p>}
+                  key={currentVersion?.rscPayload ?? ""}
+                >
+                  <RenderRscPayload
+                    rscPayload={getValidRscPayloadFromPartial(
+                      currentVersion?.rscPayload ?? ""
+                    )}
+                  />
+                </ErrorBoundary>
               </div>
 
               <Box title="RSC Payload:">
@@ -307,25 +317,6 @@ function RawRscPayload({ rscPayload }: { rscPayload: string | null }) {
     <pre className="break-all whitespace-pre-wrap text-xs leading-5">
       {rscPayload}
     </pre>
-  );
-}
-
-function RenderedRscPayload({ rscPayload }: { rscPayload: string | null }) {
-  if (!rscPayload) {
-    return "No RSC Payload yet.";
-  }
-
-  if (!isValidRscPayload(rscPayload)) {
-    return "Not a valid RSC Payload";
-  }
-
-  return (
-    <ErrorBoundary fallback={<p>Error</p>} key={rscPayload}>
-      {/* TODO: This suspense boundary cause the UI to jump a lot. *}
-      {/* <Suspense fallback={<p>Loading...</p>} key={rscPayload}> */}
-      <RenderRscPayload rscPayload={rscPayload} />
-      {/* </Suspense> */}
-    </ErrorBoundary>
   );
 }
 
