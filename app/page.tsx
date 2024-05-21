@@ -74,7 +74,14 @@ export default function TestPage() {
                     </div>
                   ) : (
                     <ShrinkPreview>
-                      <RenderedRscPayload rscPayload={version.rscPayload} />
+                      <ErrorBoundary
+                        fallback={<p>Error</p>}
+                        key={version.rscPayload}
+                      >
+                        {/* <Suspense fallback={<p>Loading...</p>}> */}
+                        <RenderRscPayload rscPayload={version.rscPayload} />
+                        {/* </Suspense> */}
+                      </ErrorBoundary>
                     </ShrinkPreview>
                   )}
                 </div>
@@ -92,11 +99,18 @@ export default function TestPage() {
           <>
             <div className="flex gap-8 flex-col grow">
               <div className="overflow-y-auto max-h-[500px] bg-white rounded-lg p-4">
-                <RenderedRscPayload
-                  rscPayload={getValidRscPayloadFromPartial(
-                    currentVersion?.rscPayload ?? ""
-                  )}
-                />
+                <ErrorBoundary
+                  fallback={<p>Error</p>}
+                  key={currentVersion?.rscPayload ?? ""}
+                >
+                  {/* <Suspense fallback={<p>Loading...</p>}> */}
+                  <RenderRscPayload
+                    rscPayload={getValidRscPayloadFromPartial(
+                      currentVersion?.rscPayload ?? ""
+                    )}
+                  />
+                  {/* </Suspense> */}
+                </ErrorBoundary>
               </div>
 
               <Box title="RSC Payload:">
@@ -136,9 +150,11 @@ export default function TestPage() {
 
                   let currentGeneration = "";
                   for await (const delta of readStreamableValue(output)) {
-                    currentGeneration =
-                      `${currentGeneration}${delta}`.replaceAll("```", "");
-                    //console.log(`current generation: ${currentGeneration}`);
+                    currentGeneration = `${currentGeneration}${delta}`
+                      .replaceAll("```", "")
+                      .replaceAll("\n\n", "\n")
+                      .replaceAll(`"},"`, `","`);
+                    console.log(`current generation: ${currentGeneration}`);
 
                     if (
                       isValidRscPayload(
@@ -245,6 +261,7 @@ export default function TestPage() {
                 "Youtube.com start page",
                 "Google maps with a search field overlay",
                 "Personal website blog post about react server components",
+                "bbc.co.uk",
               ].map((suggestion) => {
                 return (
                   <SuggestionButton
@@ -310,25 +327,6 @@ function RawRscPayload({ rscPayload }: { rscPayload: string | null }) {
   );
 }
 
-function RenderedRscPayload({ rscPayload }: { rscPayload: string | null }) {
-  if (!rscPayload) {
-    return "No RSC Payload yet.";
-  }
-
-  if (!isValidRscPayload(rscPayload)) {
-    return "Not a valid RSC Payload";
-  }
-
-  return (
-    <ErrorBoundary fallback={<p>Error</p>} key={rscPayload}>
-      {/* TODO: This suspense boundary cause the UI to jump a lot. *}
-      {/* <Suspense fallback={<p>Loading...</p>} key={rscPayload}> */}
-      <RenderRscPayload rscPayload={rscPayload} />
-      {/* </Suspense> */}
-    </ErrorBoundary>
-  );
-}
-
 function Box({
   title,
   isPending = false,
@@ -369,7 +367,7 @@ function getValidRscPayloadFromPartial(partialRscPayload: string | null) {
 }
 
 function isValidRscPayload(rscText: string) {
-  if (!rscText.startsWith("0:")) {
+  if (!rscText.includes("\n0:")) {
     return false;
   }
 
@@ -419,22 +417,10 @@ function insertSuspenseBoundaries(rscPayload: string) {
 }
 
 async function createRscStream(rscPayload: string) {
-  console.log(
-    "TEST TEST TEST",
-    rscPayload
-      .split("\n")
-      .filter((line) => !line.startsWith("f"))
-      .join("\n")
-  );
   const stream = new ReadableStream({
     start(controller) {
       controller.enqueue(
-        new TextEncoder().encode(
-          rscPayload
-            .split("\n")
-            .filter((line) => !line.startsWith("f"))
-            .join("\n")
-        )
+        new TextEncoder().encode(rscPayload.replaceAll("fixed ", ""))
       );
     },
   });
@@ -469,6 +455,8 @@ function RenderRscPayload({ rscPayload }: { rscPayload: string | null }) {
   }
 
   return (
-    <div className="w-full min-w-full relative">{use(promiseCacheValue)}</div>
+    <div className="w-full min-w-full max-h-96 relative">
+      {use(promiseCacheValue)}
+    </div>
   );
 }
