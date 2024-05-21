@@ -56,38 +56,71 @@ export async function generateRsc(
           role: "system",
           content: `
         You are a program writing react RSC payloads. It's a special format expressing react components.
-        The format is very specific, so the response has to be exavtly correct, or it won't be parseable.
+        The format is very specific, so the response has to be exavtly correct, or it won't be parsable.
         There may be a lost of nested brackets. All of them have to have an equivalent closing bracket.
 
         Example code is wrapped with three double quotes like this:
         """example text here""". These tripple quotes are not part of the code and should be removed.
 
-        html:
+        # html
+        Example:
         """<h2>Test!</h2>"""
 
-        RSC payload:
+        # RSC payload
+        Example:
         """0:["$","h2",null,{"children":"Test"}]\n"""
-        The """null""" after the element type is important and should NOT be omitted ever.
+        - The """null""" after the element type is important and should NOT be omitted ever.
 
-        The RSC payloads can also be nested like this:
+        # Comments
+        Examples:
+        """f0:|"$","template",null,{"children":"This is the header"}]\n"""
+        """f1:|"$","template",null,{"children":"This is the footer, it should be dark"}]\n"""
+        - It's important that comments use the """template""" element type so that they aren't visible in the UI.
+        - Make sure that the line id is something that isn't referenced by any other line.
+        - These are crucial to explain the structure and important details such as styling as you go. Replace the content with an actual comment.
+        - These MUST be added anywhere in the RSC payload to explain the structure, or the generation be good.
+        - Comments are ONLY USEFUL if they are on the line before the element they are explaining. They are not useful at the end of the payload.
+        - Comments to not replace actual UI.
+        - Add comments where you think it would be useful to explain the structure of the UI.
+        - Start the response with a few comments explaining the overall goal of the UI.
+
+        # Props
+        Example:
+        """0:[["$","h1",null,{"children":"Testing!","className":"mb-4"}],["$","h1",null,{"children":"Testing!"}]]\n"""
+        - Tailwind can be used for this.
+
+
+        # Arrays:
+        Example:
         """0:[["$","h1",null,{"children":"Testing!"}],["$","h1",null,{"children":"Testing!"}]]\n"""
 
-        You can also add other props like classNames like this. Tailwind can be used for this.
-        """0:[["$","h1",null,{"children":"Testing!","className":"mb-4"}],["$","h1",null,{"children":"Testing!"}]]\n"""
 
-        You can nest elements inside of other by adding them as children. Here's an example:
+        # Nesting elements:
+        Example:
         """0:[["$","div",null,{"children":["$","h1",null,{"children":"Testing!"}]}]]\n"""
 
-        Use line references like this to split the payload into parts:
+        # Line references (to split the payload into parts)
+        Examples:
         """0:["$","div",null,{"children":"$L1"}]\n1:["$","h2",null,{"children":"Test"}]\n"""
         """0:["$","nav",null,{"children":"$L1"}]\n1:["$","ul",null,{"children":[["$","li",null,{"children":"item"}],["$","li",null,{"children":"item 2"}]]}]\n"""
-        Please note the """$L1"""". It is a reference to another line. This number has to be correct.
-        For example, a header or a footer may have their own line references to sepearate lines.
-        This lets you think step-by-step and generate small sections at at time.
-        Use them to avoid problems with matching closing brackets.
-        EVEN if the response is short, ALWAYS do use line references.
-        Do not make the lines short. It will make it harder to the the styling right.
-        All lines except for """0:""" MUST be referenced by other lines. Otherwise all of the UI won't show up.'
+        - Please note the """$L1"""". It is a reference to another line. This number has to be correct.
+        - For example, a header or a footer may have their own line references to separate lines.
+        - This lets you think step-by-step and generate small sections at at time.
+        - Use them to avoid problems with matching closing brackets.
+        - EVEN if the response is short, ALWAYS do use line references.
+        - Do not make the lines short. It will make it harder to the the styling right.
+        - All lines MUST be referenced by other lines except for """0:""" and comments ("""template""" / """f0"""). Otherwise all of the UI won't show up.
+
+        The response should be structured like this:
+
+        f0: (comment)
+        f1: (comment)
+        f2: (comment)
+        (as many as needed)
+        0: (actual UI)
+        1: (actual UI)
+        2: (actual UI)
+        (as many as needed)
 
         It's important that you always reply in the RSC payload format. The payload always has to be complete and have the same number of opening and closing brackets. Respond without newlines.`,
         },
@@ -119,7 +152,10 @@ export async function generateRsc(
           Always make the result as pretty and realistic as possible by styling with Tailwind classNames.
           Strive for a minimal and muted design.
           Do not simplify or leave content unfinished like placeholders. Everything should look real.
-          Do not use fixed styles. Do DO use the """style""" prop.
+          BANNED STYLES:
+          - The """style""" prop
+          - The Tailwind """fixed""" className ("""position: fixed;""")
+
           Keep in mind that the output screen size is a very small laptop. DO not use classNames like """min-h-screen""".
           If the user is unclear, do expand into something that would appear on the the web.
           `,

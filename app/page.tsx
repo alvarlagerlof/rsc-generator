@@ -138,7 +138,7 @@ export default function TestPage() {
                   for await (const delta of readStreamableValue(output)) {
                     currentGeneration =
                       `${currentGeneration}${delta}`.replaceAll("```", "");
-                    console.log(`current generation: ${currentGeneration}`);
+                    //console.log(`current generation: ${currentGeneration}`);
 
                     if (
                       isValidRscPayload(
@@ -419,9 +419,23 @@ function insertSuspenseBoundaries(rscPayload: string) {
 }
 
 async function createRscStream(rscPayload: string) {
+  console.log(
+    "TEST TEST TEST",
+    rscPayload
+      .split("\n")
+      .filter((line) => !line.startsWith("f"))
+      .join("\n")
+  );
   const stream = new ReadableStream({
     start(controller) {
-      controller.enqueue(new TextEncoder().encode(rscPayload));
+      controller.enqueue(
+        new TextEncoder().encode(
+          rscPayload
+            .split("\n")
+            .filter((line) => !line.startsWith("f"))
+            .join("\n")
+        )
+      );
     },
   });
 
@@ -454,5 +468,7 @@ function RenderRscPayload({ rscPayload }: { rscPayload: string | null }) {
     return "no promiseCacheValue";
   }
 
-  return <div className="w-full min-w-full">{use(promiseCacheValue)}</div>;
+  return (
+    <div className="w-full min-w-full relative">{use(promiseCacheValue)}</div>
+  );
 }
