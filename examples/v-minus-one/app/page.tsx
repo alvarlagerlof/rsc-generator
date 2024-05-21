@@ -139,13 +139,15 @@ export default function Page() {
                 <>
                   <div className="flex flex-col gap-3">
                     <Box title="RSC Payload (parsed):">
-                      <Viewer
-                        payload={
-                          getValidRscPayloadFromPartial(
-                            currentVersion?.rscPayload ?? ""
-                          ) ?? ""
-                        }
-                      />
+                      <ErrorBoundary fallback={<p>Error</p>}>
+                        <Viewer
+                          payload={
+                            getValidRscPayloadFromPartial(
+                              currentVersion?.rscPayload ?? ""
+                            ) ?? ""
+                          }
+                        />
+                      </ErrorBoundary>
                     </Box>
                     <a
                       href="https://github.com/alvarlagerlof/rsc-parser"
