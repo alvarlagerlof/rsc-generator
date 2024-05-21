@@ -4,6 +4,8 @@ import {
   ReactNode,
   Suspense,
   use,
+  useMemo,
+  useOptimistic,
   useRef,
   useState,
   useTransition,
@@ -16,21 +18,40 @@ import { ErrorBoundary } from "react-error-boundary";
 // import { unstable_Viewer, unstable_createFlightResponse } from "@rsc-parser/core";
 // @ts-expect-error TODO: Fix later
 import { BeatLoading } from "respinner";
+import { flushSync } from "react-dom";
 
 export const maxDuration = 240;
+
+type Version = {
+  id: string;
+  prompt: string;
+  isPending: boolean;
+  rscPayload: string;
+};
 
 export default function TestPage() {
   const [versions, setVersions] = useState<
     { id: string; prompt: string; isPending: boolean; rscPayload: string }[]
   >([]);
+
+  const [optimisticVersions, addOptimisticVersion] = useOptimistic(
+    versions,
+    (state, newVersion: Version) => [
+      ...state,
+      {
+        ...newVersion,
+      },
+    ]
+  );
+
   const [currentVersionId, setCurrentVersionId] = useState<string | null>(null);
-  const currentVersion = versions.find(
+  const currentVersion = optimisticVersions.find(
     (version) => version.id === currentVersionId
   );
   const [isPending, startTransition] = useTransition();
 
-  const state: "initial" | "edits" =
-    versions.length > 0 && versions[0].rscPayload != "" ? "edits" : "initial";
+  const state: "initial" | "edit" =
+    versions.length > 0 || isPending ? "edit" : "initial";
 
   const formRef = useRef<HTMLFormElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -45,9 +66,13 @@ export default function TestPage() {
 
   return (
     <div className="flex flex-col md:flex-row h-full grow gap-8">
-      {state === "edits" ? (
+      {state === "edit" ? (
         <aside className="flex flex-col gap-4 shrink w-48 min-w-48">
-          {versions.map((version) => {
+          {[
+            ...new Map(
+              optimisticVersions.map((item) => [item.id, item])
+            ).values(),
+          ].map((version) => {
             return (
               <div
                 key={version.id}
@@ -93,10 +118,10 @@ export default function TestPage() {
       ) : null}
 
       <main className="flex flex-col w-full gap-8">
-        {state === "edits" ? (
+        {state === "edit" ? (
           <>
             <div className="flex gap-8 flex-col grow">
-              <div className="overflow-y-auto max-h-[500px] bg-white rounded-lg p-4">
+              <div className="overflow-y-auto max-h-[500px] min-h-96 bg-white rounded-lg p-4">
                 <ErrorBoundary
                   fallback={<p>Error</p>}
                   key={currentVersion?.rscPayload ?? ""}
@@ -118,7 +143,7 @@ export default function TestPage() {
 
         <div
           className={`sticky flex flex-col gap-3 items-center ${
-            state === "edits" ? "bottom-8" : "top-32"
+            state === "edit" ? "bottom-8" : "top-32"
           }`}
         >
           <form
@@ -129,6 +154,17 @@ export default function TestPage() {
               if (typeof prompt !== "string") {
                 throw new Error("Prompt must be a string");
               }
+
+              const newVersionId = prompt + Date.now();
+
+              addOptimisticVersion({
+                id: newVersionId,
+                prompt,
+                isPending: true,
+                rscPayload: currentVersion?.rscPayload ?? "",
+              });
+
+              setCurrentVersionId(newVersionId);
 
               startTransition(async () => {
                 try {
@@ -142,8 +178,6 @@ export default function TestPage() {
                     previousRscPayload,
                   });
 
-                  const newVersionId = prompt + Date.now();
-
                   let currentGeneration = "";
                   for await (const delta of readStreamableValue(output)) {
                     currentGeneration =
@@ -154,7 +188,8 @@ export default function TestPage() {
                       isValidRscPayload(
                         // @ts-expect-error What?
                         getValidRscPayloadFromPartial(currentGeneration)
-                      )
+                      ) &&
+                      newVersionId !== currentVersionId
                     ) {
                       setCurrentVersionId(newVersionId);
                     }
@@ -308,9 +343,17 @@ function ShrinkPreview({ children }: { children: ReactNode }) {
   );
 }
 
+function PreparingEmptyState() {
+  return (
+    <div className="flex flex-col items-center justify-center h-full">
+      <BeatLoading count={3} />
+    </div>
+  );
+}
+
 function RawRscPayload({ rscPayload }: { rscPayload: string | null }) {
   if (!rscPayload) {
-    return "No RSC Payload yet";
+    return <PreparingEmptyState />;
   }
 
   return (
@@ -333,7 +376,7 @@ function Box({
     <section className="flex flex-col gap-1.5">
       <h2 className="font-medium">{title}</h2>
       <div
-        className={`bg-white rounded-lg p-4 ${
+        className={`bg-white rounded-lg p-4 min-h-64 ${
           isPending ? "bg-opacity-60" : ""
         }`}
       >
@@ -423,11 +466,11 @@ const promiseCache = new Map<string, Promise<any>>();
 
 function RenderRscPayload({ rscPayload }: { rscPayload: string | null }) {
   if (rscPayload === null) {
-    return "No RSC Payload yet.";
+    return <PreparingEmptyState />;
   }
 
   if (!isValidRscPayload(rscPayload)) {
-    return "Invalid RSC Payload.";
+    return <PreparingEmptyState />;
   }
 
   const rscPayloadWithSuspenseBoundaries = insertSuspenseBoundaries(rscPayload);
