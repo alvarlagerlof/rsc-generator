@@ -61,6 +61,8 @@ export default function Page() {
     formRef.current.requestSubmit();
   };
 
+  const [openAIApiKey, setOpenAIApiKey] = useState<string | null>(null);
+
   return (
     <div className="flex flex-col md:flex-row h-full grow gap-8">
       {state === "edit" ? (
@@ -148,9 +150,18 @@ export default function Page() {
             ref={formRef}
             action={async (formData) => {
               const prompt = formData.get("prompt");
-              if (typeof prompt !== "string") {
+              const openAIApiKeyValue =
+                openAIApiKey === null
+                  ? window.prompt("OpenAI API key (unsafe but cool)", "")
+                  : openAIApiKey;
+              if (
+                typeof prompt !== "string" ||
+                typeof openAIApiKeyValue !== "string"
+              ) {
                 throw new Error("Prompt must be a string");
               }
+
+              setOpenAIApiKey(openAIApiKeyValue);
 
               const newVersionId = prompt + Date.now();
 
@@ -171,6 +182,7 @@ export default function Page() {
                     previousVersion?.rscPayload ?? null;
 
                   const { output } = await generateRsc(prompt, {
+                    openAIApiKey: openAIApiKeyValue,
                     previousPrompt,
                     previousRscPayload,
                   });
@@ -249,15 +261,30 @@ export default function Page() {
             }}
           >
             <div className="bg-white w-full rounded-lg flex flex-row p-1.5 gap-1.5 items-center">
-              <input
-                name="prompt"
-                ref={inputRef}
-                placeholder="What do you want to generate?"
-                className={`w-full p-2 bg-gray-100 bg-transparent ${
-                  isPending ? "text-gray-500" : ""
-                }`}
-                disabled={isPending}
-              />
+              <div className="flex flex-col gap-1.5 grow">
+                <input
+                  name="prompt"
+                  ref={inputRef}
+                  placeholder="What do you want to generate?"
+                  className={`w-full p-2 bg-gray-100 bg-transparent ${
+                    isPending ? "text-gray-500" : ""
+                  }`}
+                  disabled={isPending}
+                />
+
+                {/* <input
+                  name="openAIApiKey"
+                  defaultValue={openAIApiKey ?? ""}
+                  onChange={(event) => {
+                    setOpenAIApiKey(event.target.value);
+                  }}
+                  placeholder="OpenAI API key (unsafe but cool)"
+                  className={`w-full p-2 bg-gray-100 bg-transparent ${
+                    isPending ? "text-gray-500" : ""
+                  }`}
+                  disabled={isPending}
+                /> */}
+              </div>
 
               <button
                 type="submit"

@@ -1,19 +1,25 @@
 "use server";
 
-import { openai } from "@ai-sdk/openai";
+import { createOpenAI } from "@ai-sdk/openai";
 import { generateText, streamText } from "ai";
 import { createStreamableValue } from "ai/rsc";
 
 export async function generateRsc(
   prompt: string,
   {
+    openAIApiKey,
     previousPrompt,
     previousRscPayload,
   }: {
+    openAIApiKey: string;
     previousPrompt: string | null;
     previousRscPayload: string | null;
   }
 ) {
+  const openai = createOpenAI({
+    apiKey: process.env.OPENAI_API_KEY ?? openAIApiKey,
+  });
+
   const { text: plan } = await generateText({
     model: openai("gpt-4o"),
     seed: 1,
