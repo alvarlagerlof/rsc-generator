@@ -3,6 +3,8 @@
 import {
   ReactNode,
   use,
+  useCallback,
+  useEffect,
   useOptimistic,
   useRef,
   useState,
@@ -39,12 +41,12 @@ export default function Page() {
       {
         ...newVersion,
       },
-    ]
+    ],
   );
 
   const [currentVersionId, setCurrentVersionId] = useState<string | null>(null);
   const currentVersion = optimisticVersions.find(
-    (version) => version.id === currentVersionId
+    (version) => version.id === currentVersionId,
   );
   const [isPending, startTransition] = useTransition();
 
@@ -70,7 +72,7 @@ export default function Page() {
         <aside className="flex flex-col gap-4 shrink w-48 min-w-48">
           {[
             ...new Map(
-              optimisticVersions.map((item) => [item.id, item])
+              optimisticVersions.map((item) => [item.id, item]),
             ).values(),
           ].map((version) => {
             return (
@@ -128,7 +130,7 @@ export default function Page() {
                 >
                   <RenderRscPayload
                     rscPayload={getValidRscPayloadFromPartial(
-                      currentVersion?.rscPayload ?? ""
+                      currentVersion?.rscPayload ?? "",
                     )}
                   />
                 </ErrorBoundary>
@@ -143,7 +145,7 @@ export default function Page() {
                         <Viewer
                           payload={
                             getValidRscPayloadFromPartial(
-                              currentVersion?.rscPayload ?? ""
+                              currentVersion?.rscPayload ?? "",
                             ) ?? ""
                           }
                         />
@@ -254,7 +256,7 @@ export default function Page() {
                     if (
                       isValidRscPayload(
                         // @ts-expect-error What?
-                        getValidRscPayloadFromPartial(currentGeneration)
+                        getValidRscPayloadFromPartial(currentGeneration),
                       ) &&
                       newVersionId !== currentVersionId
                     ) {
@@ -266,7 +268,7 @@ export default function Page() {
                       if (
                         previousVersions.find(
                           (previousVersion) =>
-                            previousVersion.id === newVersionId
+                            previousVersion.id === newVersionId,
                         )
                       ) {
                         return previousVersions.map((previousVersion) => {
@@ -506,7 +508,7 @@ function isValidRscPayload(rscText: string) {
 function insertSuspenseBoundaries(rscPayload: string) {
   // Find unresolved line refenreces
   const lineReferences = [...rscPayload.matchAll(/\$L\d{1,2}/g)].map((a) =>
-    a["0"].replace("$L", "")
+    a["0"].replace("$L", ""),
   );
   const lines = rscPayload
     .split("\n")
@@ -534,11 +536,34 @@ function insertSuspenseBoundaries(rscPayload: string) {
   for (const unresolvedLineReference of unresolvedLineRefereces) {
     clonedPayload = clonedPayload.replace(
       new RegExp(String.raw`"\$L${unresolvedLineReference}"`, "g"),
-      createSuspenseBoundary(unresolvedLineReference)
+      createSuspenseBoundary(unresolvedLineReference),
     );
   }
 
   return `${suspenseSymbolLine}\n${clonedPayload}`;
+}
+
+function useCreateFromResableStream(rscPayload: string) {
+  const redableStreamRef = useRef<ReadableStream | null>(null);
+  const writableStreamRef = useRef<WritableStream | null>(null);
+  const usedRscPayloadRef = useRef<string | null>(null);
+
+  if (writableStreamRef.current === null) {
+    writableStreamRef.current = new WritableStream({
+      // start(controller) {
+      //   controller.enqueue(new TextEncoder().encode(rscPayload));
+      // },
+    });
+  }
+
+  if (
+    usedRscPayloadRef.current !== rscPayload &&
+    writableStreamRef.current !== null
+  ) {
+    writableStreamRef.current
+      .getWriter()
+      .write(new TextEncoder().encode(rscPayload));
+  }
 }
 
 async function createRscStream(rscPayload: string) {
@@ -551,9 +576,30 @@ async function createRscStream(rscPayload: string) {
   return createFromReadableStream(stream);
 }
 
-const promiseCache = new Map<string, Promise<any>>();
+// See https://github.com/Fredkiss3/gh-next/blob/c5bd2c4ec611f5e7f0eb5e9607b8848af1248145/src/components/markdown-editor/markdown-editor.tsx#L265-L289
+function usePromiseRenderMap(rscPayload: string) {
+  const [lastRenderPromise, setLastRenderPromise] =
+    useState<Promise<React.JSX.Element> | null>(null);
+  const promiseRenderMapRef = useRef(
+    new Map<string, Promise<React.JSX.Element>>(),
+  );
 
+  useEffect(() => {
+    const map = promiseRenderMapRef.current;
+    if (!map.has(rscPayload)) {
+      const promise = createRscStream(insertSuspenseBoundaries(rscPayload));
+      map.set(rscPayload, promise);
+      setLastRenderPromise(promise);
+    } else {
+      setLastRenderPromise(map.get(rscPayload) ?? null);
+    }
+  }, [rscPayload]);
+
+  return [lastRenderPromise] as const;
+}
 function RenderRscPayload({ rscPayload }: { rscPayload: string | null }) {
+  const [lastRenderPromise] = usePromiseRenderMap(rscPayload ?? "");
+
   if (rscPayload === null) {
     return <PreparingEmptyState />;
   }
@@ -562,20 +608,10 @@ function RenderRscPayload({ rscPayload }: { rscPayload: string | null }) {
     return <PreparingEmptyState />;
   }
 
-  const rscPayloadWithSuspenseBoundaries = insertSuspenseBoundaries(rscPayload);
-
-  const promiseCacheValue = promiseCache.get(rscPayloadWithSuspenseBoundaries);
-
-  if (promiseCacheValue === undefined) {
-    promiseCache.set(
-      rscPayloadWithSuspenseBoundaries,
-      createRscStream(rscPayloadWithSuspenseBoundaries)
-    );
+  if (lastRenderPromise === null) {
+    return "test";
+    return <PreparingEmptyState />;
   }
 
-  if (promiseCacheValue === undefined) {
-    return "no promiseCacheValue";
-  }
-
-  return <div className="w-full min-w-full">{use(promiseCacheValue)}</div>;
+  return <div className="w-full min-w-full">{use(lastRenderPromise)}</div>;
 }
