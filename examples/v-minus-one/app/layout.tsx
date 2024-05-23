@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 export const metadata: Metadata = {
   title: "V -1",
@@ -21,7 +21,7 @@ export default function RootLayout({
         <script src="https://cdn.tailwindcss.com"></script>
       </head>
       <body
-        className={`${inter.className} p-4 flex flex-col dark:bg-slate-950 items-center min-h-screen bg-gray-100 dark:text-white`}
+        className={`${inter.variable} p-4 flex flex-col dark:bg-slate-950 items-center min-h-screen bg-gray-100 dark:text-white`}
       >
         <nav className="pb-3">
           <a

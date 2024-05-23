@@ -48,11 +48,10 @@ export async function generateRsc(
     ],
   });
 
-  console.log("Plan", plan);
+  console.log(plan);
 
   const stream = createStreamableValue("");
 
-  console.log("Generating RSC payload");
   (async () => {
     const { textStream } = await streamText({
       model: openai("gpt-4o"),
@@ -145,11 +144,15 @@ export async function generateRsc(
       ],
     });
 
+    let result = "";
     for await (const delta of textStream) {
       //console.log("Delta", delta);
       //await new Promise((resolve) => setTimeout(resolve, 50));
+      result += delta;
       stream.update(delta);
     }
+
+    console.log(result);
 
     stream.done();
   })();

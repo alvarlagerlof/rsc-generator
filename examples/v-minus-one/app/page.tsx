@@ -249,7 +249,7 @@ export default function Page() {
                   for await (const delta of readStreamableValue(output)) {
                     currentGeneration =
                       `${currentGeneration}${delta}`.replaceAll("```", "");
-                    console.log(`current generation: ${currentGeneration}`);
+                    // console.log(`current generation: ${currentGeneration}`);
 
                     if (
                       isValidRscPayload(
@@ -551,6 +551,7 @@ async function createRscStream(rscPayload: string) {
   return createFromReadableStream(stream);
 }
 
+// This is not safe, and not the way to do this.
 const promiseCache = new Map<string, Promise<any>>();
 
 function RenderRscPayload({ rscPayload }: { rscPayload: string | null }) {
@@ -564,17 +565,11 @@ function RenderRscPayload({ rscPayload }: { rscPayload: string | null }) {
 
   const rscPayloadWithSuspenseBoundaries = insertSuspenseBoundaries(rscPayload);
 
-  const promiseCacheValue = promiseCache.get(rscPayloadWithSuspenseBoundaries);
+  let promiseCacheValue = promiseCache.get(rscPayloadWithSuspenseBoundaries);
 
   if (promiseCacheValue === undefined) {
-    promiseCache.set(
-      rscPayloadWithSuspenseBoundaries,
-      createRscStream(rscPayloadWithSuspenseBoundaries)
-    );
-  }
-
-  if (promiseCacheValue === undefined) {
-    return "no promiseCacheValue";
+    promiseCacheValue = createRscStream(rscPayloadWithSuspenseBoundaries);
+    promiseCache.set(rscPayloadWithSuspenseBoundaries, promiseCacheValue);
   }
 
   return <div className="w-full min-w-full">{use(promiseCacheValue)}</div>;
