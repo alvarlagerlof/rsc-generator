@@ -220,7 +220,7 @@ export default function Page() {
                 return;
               }
               
-              if(openAIApiKeyValue.trim() === "") {
+              if(openAIApiKeyValue.trim() === "" && process.env.NODE_ENV !== "development") {
                 alert("Please enter a valid OpenAI API key");
                 return;
               }
