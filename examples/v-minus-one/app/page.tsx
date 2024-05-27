@@ -212,6 +212,19 @@ export default function Page() {
                 openAIApiKey === null
                   ? window.prompt("OpenAI API key (unsafe but cool)", "")
                   : openAIApiKey;
+              
+              if (openAIApiKeyValue === null) {
+                // Handle the case where the prompt was canceled
+                console.log('User canceled the prompt');
+                // Add logic to safely exit or provide user feedback
+                return;
+              }
+              
+              if(openAIApiKeyValue.trim() === "" && process.env.NODE_ENV !== "development") {
+                alert("Please enter a valid OpenAI API key");
+                return;
+              }
+              
               if (
                 typeof prompt !== "string" ||
                 typeof openAIApiKeyValue !== "string"
