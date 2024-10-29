@@ -8,8 +8,6 @@ import {
   useState,
   useTransition,
 } from "react";
-// @ts-expect-error TODO: Fix later
-import { createFromReadableStream } from "react-server-dom-webpack/client";
 import { generateRsc } from "./generateRsc";
 import { readStreamableValue } from "ai/rsc";
 import { ErrorBoundary } from "react-error-boundary";
@@ -103,7 +101,7 @@ export default function Page() {
                         fallback={<p>Error</p>}
                         key={currentVersion?.rscPayload ?? ""}
                       >
-                        <RenderRscPayload rscPayload={version.rscPayload} />
+                        {/* <RenderRscPayload rscPayload={version.rscPayload} /> */}
                       </ErrorBoundary>
                     </ShrinkPreview>
                   )}
@@ -127,9 +125,7 @@ export default function Page() {
                   key={currentVersion?.rscPayload ?? ""}
                 >
                   <RenderRscPayload
-                    rscPayload={getValidRscPayloadFromPartial(
-                      currentVersion?.rscPayload ?? ""
-                    )}
+                    rscPayload={currentVersion?.rscPayload ?? ""}
                   />
                 </ErrorBoundary>
               </div>
@@ -137,56 +133,6 @@ export default function Page() {
               {typeof currentVersion?.rscPayload === "string" &&
               currentVersion?.rscPayload !== "" ? (
                 <>
-                  <div className="flex flex-col gap-3">
-                    <Box title="RSC Payload (parsed):">
-                      <ErrorBoundary fallback={<p>Error</p>}>
-                        <Viewer
-                          payload={
-                            getValidRscPayloadFromPartial(
-                              currentVersion?.rscPayload ?? ""
-                            ) ?? ""
-                          }
-                        />
-                      </ErrorBoundary>
-                    </Box>
-                    <a
-                      href="https://github.com/alvarlagerlof/rsc-parser"
-                      className="flex flex-row gap-2 items-center hover:underline"
-                    >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="16px"
-                        height="16px"
-                        viewBox="0 0 20 20"
-                        version="1.1"
-                      >
-                        <title>github [#142]</title>
-                        <desc>Created with Sketch.</desc>
-                        <defs></defs>
-                        <g
-                          id="Page-1"
-                          stroke="none"
-                          strokeWidth="1"
-                          fill="none"
-                          fillRule="evenodd"
-                        >
-                          <g
-                            transform="translate(-140.000000, -7559.000000)"
-                            fill="currentColor"
-                          >
-                            <g
-                              id="icons"
-                              transform="translate(56.000000, 160.000000)"
-                            >
-                              <path d="M94,7399 C99.523,7399 104,7403.59 104,7409.253 C104,7413.782 101.138,7417.624 97.167,7418.981 C96.66,7419.082 96.48,7418.762 96.48,7418.489 C96.48,7418.151 96.492,7417.047 96.492,7415.675 C96.492,7414.719 96.172,7414.095 95.813,7413.777 C98.04,7413.523 100.38,7412.656 100.38,7408.718 C100.38,7407.598 99.992,7406.684 99.35,7405.966 C99.454,7405.707 99.797,7404.664 99.252,7403.252 C99.252,7403.252 98.414,7402.977 96.505,7404.303 C95.706,7404.076 94.85,7403.962 94,7403.958 C93.15,7403.962 92.295,7404.076 91.497,7404.303 C89.586,7402.977 88.746,7403.252 88.746,7403.252 C88.203,7404.664 88.546,7405.707 88.649,7405.966 C88.01,7406.684 87.619,7407.598 87.619,7408.718 C87.619,7412.646 89.954,7413.526 92.175,7413.785 C91.889,7414.041 91.63,7414.493 91.54,7415.156 C90.97,7415.418 89.522,7415.871 88.63,7414.304 C88.63,7414.304 88.101,7413.319 87.097,7413.247 C87.097,7413.247 86.122,7413.234 87.029,7413.87 C87.029,7413.87 87.684,7414.185 88.139,7415.37 C88.139,7415.37 88.726,7417.2 91.508,7416.58 C91.513,7417.437 91.522,7418.245 91.522,7418.489 C91.522,7418.76 91.338,7419.077 90.839,7418.982 C86.865,7417.627 84,7413.783 84,7409.253 C84,7403.59 88.478,7399 94,7399"></path>
-                            </g>
-                          </g>
-                        </g>
-                      </svg>
-                      <span>rsc-parser on GitHub</span>
-                    </a>
-                  </div>
-
                   <Box title="RSC Payload (raw):">
                     <RawRscPayload
                       rscPayload={currentVersion?.rscPayload ?? ""}
@@ -212,19 +158,22 @@ export default function Page() {
                 openAIApiKey === null
                   ? window.prompt("OpenAI API key (unsafe but cool)", "")
                   : openAIApiKey;
-              
+
               if (openAIApiKeyValue === null) {
                 // Handle the case where the prompt was canceled
-                console.log('User canceled the prompt');
+                console.log("User canceled the prompt");
                 // Add logic to safely exit or provide user feedback
                 return;
               }
-              
-              if(openAIApiKeyValue.trim() === "" && process.env.NODE_ENV !== "development") {
+
+              if (
+                openAIApiKeyValue.trim() === "" &&
+                process.env.NODE_ENV !== "development"
+              ) {
                 alert("Please enter a valid OpenAI API key");
                 return;
               }
-              
+
               if (
                 typeof prompt !== "string" ||
                 typeof openAIApiKeyValue !== "string"
@@ -260,17 +209,12 @@ export default function Page() {
 
                   let currentGeneration = "";
                   for await (const delta of readStreamableValue(output)) {
-                    currentGeneration =
-                      `${currentGeneration}${delta}`.replaceAll("```", "");
+                    currentGeneration = `${currentGeneration}${delta}`
+                      .replaceAll("```", "")
+                      .replaceAll("json", "");
                     // console.log(`current generation: ${currentGeneration}`);
 
-                    if (
-                      isValidRscPayload(
-                        // @ts-expect-error What?
-                        getValidRscPayloadFromPartial(currentGeneration)
-                      ) &&
-                      newVersionId !== currentVersionId
-                    ) {
+                    if (newVersionId !== currentVersionId) {
                       setCurrentVersionId(newVersionId);
                     }
 
@@ -380,13 +324,8 @@ export default function Page() {
           {state === "initial" ? (
             <div className="flex flex-row gap-2 flex-wrap justify-center">
               {[
-                "Google.com home page",
-                "Netflix.com home page (logged in)",
-                "Twitter svg blue",
-                "Twitter.com home page (logged in)",
-                "Youtube.com start page",
-                "Google maps with a search field overlay",
-                "Personal website blog post about react server components",
+                "Weather in London",
+                // "CRM data with 10 customers containing contact info on various platforms and orders. Each order should have items. Each item should have a category, that may be used on multiple items.",
               ].map((suggestion) => {
                 return (
                   <SuggestionButton
@@ -488,102 +427,123 @@ function Box({
   );
 }
 
-function getValidRscPayloadFromPartial(partialRscPayload: string | null) {
-  if (partialRscPayload === null) {
-    return partialRscPayload;
-  }
-
-  const splitByNewLines = partialRscPayload.split("\n");
-
-  if (splitByNewLines.length === 0 || splitByNewLines.length === 1) {
-    return partialRscPayload;
-  }
-
-  // Return every array item except the last one and join
-  splitByNewLines.pop();
-  return splitByNewLines.join("\n") + "\n";
-}
-
-function isValidRscPayload(rscText: string) {
-  if (!rscText.startsWith("0:")) {
-    return false;
-  }
-
-  if (!rscText.endsWith("\n")) {
-    return false;
-  }
-
-  return true;
-}
-
-function insertSuspenseBoundaries(rscPayload: string) {
-  // Find unresolved line refenreces
-  const lineReferences = [...rscPayload.matchAll(/\$L\d{1,2}/g)].map((a) =>
-    a["0"].replace("$L", "")
-  );
-  const lines = rscPayload
-    .split("\n")
-    .map((line) => line.split(":").at(0))
-    .filter((line) => line !== "");
-
-  const unresolvedLineRefereces = [];
-  for (const lineReference of lineReferences) {
-    // Try to find the line reference among the lines
-    if (!lines.includes(lineReference)) {
-      unresolvedLineRefereces.push(lineReference);
-    }
-  }
-
-  function createSuspenseBoundary(lineReference: string) {
-    const boundary = `["$","$a",null,{"fallback":["$","p",null,{"children":"Generating..."}],"children":"$L${lineReference}"}]`;
-
-    return boundary;
-  }
-
-  const suspenseSymbolLine = `a:"$Sreact.suspense"`;
-
-  let clonedPayload = `${rscPayload}`;
-  // Find unresolved references and add suspense boundaries
-  for (const unresolvedLineReference of unresolvedLineRefereces) {
-    clonedPayload = clonedPayload.replace(
-      new RegExp(String.raw`"\$L${unresolvedLineReference}"`, "g"),
-      createSuspenseBoundary(unresolvedLineReference)
-    );
-  }
-
-  return `${suspenseSymbolLine}\n${clonedPayload}`;
-}
-
-async function createRscStream(rscPayload: string) {
-  const stream = new ReadableStream({
-    start(controller) {
-      controller.enqueue(new TextEncoder().encode(rscPayload));
-    },
-  });
-
-  return createFromReadableStream(stream);
-}
-
-// This is not safe, and not the way to do this.
-const promiseCache = new Map<string, Promise<any>>();
-
 function RenderRscPayload({ rscPayload }: { rscPayload: string | null }) {
   if (rscPayload === null) {
     return <PreparingEmptyState />;
   }
 
-  if (!isValidRscPayload(rscPayload)) {
-    return <PreparingEmptyState />;
+  // Parse the JSON data
+  let variables;
+  try {
+    variables = JSON.parse(
+      closeJsonBrackets(removeEverythingAfterLastComma(rscPayload))
+    );
+  } catch (e) {
+    console.error("Failed to parse JSON data:", e);
+    return;
   }
 
-  const rscPayloadWithSuspenseBoundaries = insertSuspenseBoundaries(rscPayload);
+  // Function to recursively resolve references
+  // @ts-expect-error Types
+  function resolveReferences(
+    obj: any,
+    // @ts-expect-error Types
+    variables,
+    resolved = new Map(),
+    resolving = new Set()
+  ) {
+    if (Array.isArray(obj)) {
+      return obj.map((item) =>
+        resolveReferences(item, variables, resolved, resolving)
+      );
+    } else if (typeof obj === "object" && obj !== null) {
+      const result = {};
+      for (const key in obj) {
+        // @ts-expect-error Types
+        result[key] = resolveReferences(
+          obj[key],
+          variables,
+          resolved,
+          resolving
+        );
+      }
+      return result;
+    } else if (typeof obj === "string" && obj.startsWith("$")) {
+      const varName = obj;
 
-  let promiseCacheValue = promiseCache.get(rscPayloadWithSuspenseBoundaries);
+      if (resolved.has(varName)) {
+        // Return the cached result if already resolved
+        return resolved.get(varName);
+      }
 
-  if (promiseCacheValue === undefined) {
-    promiseCacheValue = createRscStream(rscPayloadWithSuspenseBoundaries);
-    promiseCache.set(rscPayloadWithSuspenseBoundaries, promiseCacheValue);
+      if (resolving.has(varName)) {
+        // Circular reference detected
+        //throw new Error(`Circular reference detected for variable ${varName}`);
+        return obj;
+      }
+
+      if (variables.hasOwnProperty(varName)) {
+        resolving.add(varName); // Mark the variable as being resolved
+        // @ts-expect-error Types
+        const value = resolveReferences(
+          variables[varName],
+          variables,
+          resolved,
+          resolving
+        );
+        resolving.delete(varName); // Remove the variable from the resolving set
+        resolved.set(varName, value); // Cache the resolved value
+        return value;
+      } else {
+        // Variable not found in variables object
+        return obj;
+      }
+    } else {
+      return obj;
+    }
   }
 
-  return <div className="w-full min-w-full">{use(promiseCacheValue)}</div>;
+  return (
+    <pre className="w-full min-w-full text-sm dark:text-white">
+      {JSON.stringify(
+        resolveReferences(variables["$result"], variables),
+        null,
+        2
+      )}
+    </pre>
+  );
+}
+
+function removeEverythingAfterLastComma(jsonString: string) {
+  const lastCommaIndex = jsonString.lastIndexOf(",");
+  if (lastCommaIndex === -1) {
+    return jsonString;
+  }
+  return jsonString.substring(0, lastCommaIndex);
+}
+
+function closeJsonBrackets(jsonString: string) {
+  let current = [];
+
+  for (const letter of jsonString) {
+    switch (letter) {
+      case "{":
+        current.push("}");
+        break;
+      case "[":
+        current.push("]");
+        break;
+      case "}":
+        current.pop();
+        break;
+      case "]":
+        current.pop();
+        break;
+    }
+  }
+
+  // repeat opposite of current
+  const closingBrackets = current.reverse().join("");
+
+  return jsonString + closingBrackets;
 }

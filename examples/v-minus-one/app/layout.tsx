@@ -24,7 +24,7 @@ export default function RootLayout({
         className={`${inter.variable} p-4 flex flex-col dark:bg-slate-950 items-center min-h-screen bg-gray-100 dark:text-white`}
       >
         <nav className="pb-3">
-          <a
+          {/* <a
             href="https://github.com/alvarlagerlof/rsc-generator"
             className="flex flex-row gap-2 items-center hover:underline"
           >
@@ -56,7 +56,7 @@ export default function RootLayout({
               </g>
             </svg>
             <span>rsc-generator on GitHub</span>
-          </a>
+          </a> */}
         </nav>
         <main className="max-w-screen-xl w-full h-full grow flex flex-col">
           {children}
